@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -61,6 +62,32 @@ func hotReloadLoop(cli *CLI, configWrapper *config.WhiteboxConfigWrapper) {
 	}
 }
 
+func configureLogger() {
+	var level slog.Level
+	switch strings.ToLower(os.Getenv("WHITEBOX_LOG_LEVEL")) {
+	case "debug":
+		level = slog.LevelDebug
+	case "warn", "warning":
+		level = slog.LevelWarn
+	case "error":
+		level = slog.LevelError
+	default:
+		level = slog.LevelInfo
+	}
+
+	opts := slog.HandlerOptions{Level: level}
+
+	var handler slog.Handler
+	switch strings.ToLower(os.Getenv("WHITEBOX_LOG_FORMAT")) {
+	case "json":
+		handler = slog.NewJSONHandler(os.Stdout, &opts)
+	default:
+		handler = mlog.NewModuleHandler(os.Stdout, &mlog.ModuleHandlerOptions{SlogOpts: opts})
+	}
+
+	slog.SetDefault(slog.New(handler))
+}
+
 func main() {
 	var cli CLI
 
@@ -84,16 +111,7 @@ func main() {
 
 	wrapper := config.NewConfigWrapper(cfg)
 
-	// Initialize the default structured logger writing to stdout
-	// This configuration is flexible and can be adapted - e.g, by switching to JSON -
-	// to ensure compatibility with log ingestion and aggregation systems.
-	opts := mlog.ModuleHandlerOptions{
-		SlogOpts: slog.HandlerOptions{
-			Level: slog.LevelDebug,
-		},
-	}
-	handler := mlog.NewModuleHandler(os.Stdout, &opts)
-	slog.SetDefault(slog.New(handler))
+	configureLogger()
 
 	if cli.ConfigPath == "" {
 		slog.Info("using default configuration (no config path provided)")

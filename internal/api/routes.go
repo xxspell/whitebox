@@ -2,6 +2,8 @@ package api
 
 import (
 	"net/http"
+	"os"
+	"strings"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -13,7 +15,9 @@ import (
 func (srv *Server) RegisterRoutes() http.Handler {
 	r := gin.New()
 
-	r.Use(gin.Logger())
+	if strings.ToLower(os.Getenv("WHITEBOX_ACCESS_LOG")) != "false" {
+		r.Use(gin.Logger())
+	}
 	r.Use(v1.GlobalErrorHandler())
 
 	// Configure CORS at the root level

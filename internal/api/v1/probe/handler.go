@@ -40,6 +40,10 @@ import (
 	_ "github.com/amnezia-vpn/amnezia-xray-core/proxy/wireguard"
 )
 
+func xrayDebugEnabled() bool {
+	return strings.ToLower(os.Getenv("WHITEBOX_XRAY_DEBUG")) == "true"
+}
+
 func matchRegularExpression(body []byte, predicate string) (bool, error) {
 	regex, err := regexp.Compile(predicate)
 	if err != nil {
@@ -198,10 +202,10 @@ func (h *ProbeHandler) parseXrayConf(ctx *gin.Context, params *ProbeParams) (out
 	switch params.Scheme {
 	case "http://", "https://":
 		slog.Debug("assuming that ctx is json subscription link")
-		config, err = serial.ParseSubscriptionURI(params.Connection, &serial.ParseSubParams{EnableDebug: true})
+		config, err = serial.ParseSubscriptionURI(params.Connection, &serial.ParseSubParams{EnableDebug: xrayDebugEnabled()})
 	default:
 		slog.Debug("assuming that ctx is direct vpn connection uri")
-		config, err = serial.ParseURI(serial.CONFIG_BACKEND_XRAYCORE, params.Connection, &serial.ParseParams{EnableDebug: true})
+		config, err = serial.ParseURI(serial.CONFIG_BACKEND_XRAYCORE, params.Connection, &serial.ParseParams{EnableDebug: xrayDebugEnabled()})
 	}
 
 	if err != nil {
@@ -238,8 +242,8 @@ func (h *ProbeHandler) Probe(ctx *gin.Context) {
 
 	scope := cfg.Scopes[params.Scope]
 
-	slog.Info(
-		"recv probe w/",
+	slog.Debug(
+		"recv probe",
 		"scheme", params.Scheme,
 		"target", params.Target,
 		"scope", params.Scope,
@@ -575,7 +579,7 @@ func (h *ProbeHandler) Probe(ctx *gin.Context) {
 	tt.mu.Lock()
 	defer tt.mu.Unlock()
 
-	slog.Info(fmt.Sprintf("a total of %d trace(s) were encountered during probing", len(tt.Traces)))
+	slog.Debug("probe traces encountered", "count", len(tt.Traces))
 
 	for i, trace := range tt.Traces {
 		slog.Debug(
